@@ -22,9 +22,11 @@ This project aims in writing bots for various financial markets and crypto marke
 git clone https://github.com/Abhijith-Nagaraja/trade-bots.git
 cd trade-bots/crypto-bot
 npm install
-cp config-sample.js config.js```
+cp config-sample.js config.js
+```
 
 Make the necessary changes in the `config.js`
 
 ```shell
-node index.js```
+node index.js
+```
