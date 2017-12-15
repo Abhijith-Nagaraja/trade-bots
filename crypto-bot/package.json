@@ -1,0 +1,22 @@
+{
+  "name": "crypto-bot",
+  "version": "0.0.1",
+  "description": "Crypto trading bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "npm start"
+  },
+  "keywords": [
+    "crypto",
+    "crypto-bot",
+    "virtual-currency"
+  ],
+  "dependencies": {
+    "gdax": "0.4.2",
+    "express": "4.16.2",
+    "path": "0.12.7",
+    "async-lock": "1.1.0"
+  },
+  "author": "Abhijith Nagaraja",
+  "license": "ISC"
+}
