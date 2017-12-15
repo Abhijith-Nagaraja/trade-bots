@@ -17,10 +17,6 @@ const cryptoDecimal = TRADING_PAIRS.TRADE_ITEMS[tradePair].DECIMAL1;
 const tradeDecimal = TRADING_PAIRS.TRADE_ITEMS[tradePair].DECIMAL2;
 const publicClient = new GDAX.PublicClient(tradePair);
 
-//Print initial details
-console.log("Trading Pair: " + tradePair);
-printDetails();
-
 // variables used
 var balance = CONFIG.TRADE.BALANCE;
 var balanceHold = 0;
@@ -35,6 +31,10 @@ var processed = {};
 var lock = new AsyncLock();
 
 var authClient;
+
+//Print initial details
+console.log("Trading Pair: " + tradePair);
+printDetails();
 
 // Should connect to sandbox?
 // TODO: Hardcoded to GDAX
