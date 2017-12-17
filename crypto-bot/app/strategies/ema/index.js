@@ -5,7 +5,6 @@
 
 const CONFIG = require('../../config');
 const EMA = require('./ema');
-const EXCHANGE = require('../../exchanges/index');
 
 /**
  *  EMA Strategy
@@ -18,21 +17,35 @@ const EXCHANGE = require('../../exchanges/index');
  *     b. Perform 2 tests and buy on 3rd.
  *  5. Sell if
  *     a. Downtrend or
- *     b. Value < EMA_LOW
+ *     b. Value < EMA_LOW (sell limit)
+ *     c. Value < EMA_HIGH (sell market)
  */
 class EmaStrategy{
   constructor(){
     this.ema = new EMA(CONFIG.EMA_LOW_THRESHOLD, CONFIG.EMA_HIGH_THRESHOLD);
     console.log("EMA Time Period Used: " + CONFIG.EMA_TP + " seconds");
-    this.exchange = new EXCHANGE().getExchange();
     this.intervals = {};
     this.test1 = false;
     this.test2 = false;
   }
 
+  setExchange(exchange){
+    if(exchange){
+      this.exchange = exchange;
+    }else{
+      console.error("\x1b[31mNo exchange set.\nExiting... \x1b[30m");
+      process.exit(0);
+    }
+  }
+
   execute(){
-    console.log("Capturing Trend");
-    this.setIntervals();
+      if(this.exchange){
+        console.log("Capturing Trend");
+        this.setIntervals();
+      }else{
+        console.error("\x1b[31mNo exchange set.\nExiting... \x1b[30m");
+        process.exit(1);
+      }
   }
 
   // Set all the counters
@@ -114,10 +127,16 @@ class EmaStrategy{
   }
 
   // Sell if Step 5 is satisfied
-  sell(price){
+  sell(){
     let that = this;
     this.exchange.cancelAllOrders(function(){
-        that.exchange.sellMarket();
+        let price = that.exchange.getCurrPrice();
+        let emaHigh = that.ema.getEmaHigh();
+        if(price > emaHigh && price < that.ema.getEmaLow()){
+            that.exchange.sellLimit(price);
+        }else if(price <= emaHigh){
+            that.exchange.sellMarket();
+        }
     });
   }
 

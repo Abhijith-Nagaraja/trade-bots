@@ -31,10 +31,8 @@ var processed = {};
 var lock = new AsyncLock();
 
 var authClient;
-
-//Print initial details
-console.log("Trading Pair: " + tradePair);
-printDetails();
+var initialBalance = balance;
+var orderTicker;
 
 // Should connect to sandbox?
 // TODO: Hardcoded to GDAX
@@ -46,14 +44,28 @@ if(CONFIG.SANDBOX){
   console.log("Connecting to " + CONFIG.GDAX.URL);
 }
 console.log("Connected to gdax");
+console.log("Trading Pair: " + tradePair);
 
-// Create interval with time period to check the status of all pending orders
-// TODO: time period need to come from config
-var orderTicker = setInterval(function(){
-  checkSellOrders();
-  checkPendingBuyOrders();
-},500);
+function init(){
+  // Create interval with time period to check the status of all pending orders
+  // TODO: time period need to come from config
+  orderTicker = setInterval(function(){
+    checkSellOrders();
+    checkPendingBuyOrders();
+  },500);
+}
 
+function setInitialBalance(){
+  getNextTick(function(){
+    if(coins > 0){
+      initialBalance = balance + coins*currPrice;
+      console.log("Initial Balance Set");
+    }else{
+      console.log("Initial Balance Set");
+    }
+    printDetails();
+  });
+}
 /**
   * Prints statistics in color coded format
   * format :
@@ -64,10 +76,10 @@ var orderTicker = setInterval(function(){
 function printDetails(){
   let coin = tradePair.split("-")[0];
   let accountBalance = balance + balanceHold + coins * currPrice + coinsHold * currPrice;
-  let profit =  accountBalance - CONFIG.TRADE.BALANCE;
-  let profitPrecent =  ( ( accountBalance/CONFIG.TRADE.BALANCE - 1 ) * 100 ).toFixed(2) + "%";
-  let profitString = profit < 0 ? " \x1b[31m $" + profit + " " + profitPrecent + " \x1b[30m " :
-                                  " \x1b[32m $" + profit + " " + profitPrecent + " \x1b[30m ";
+  let profit =  accountBalance - initialBalance;
+  let profitPrecent =  ( ( accountBalance/initialBalance - 1 ) * 100 ).toFixed(2) + "%";
+  let profitString = profit < 0 ? " \x1b[31m $" + accountBalance + " $" + profit + " " + profitPrecent + " \x1b[30m " :
+                                  " \x1b[32m $" + accountBalance + " $" + profit + " " + profitPrecent + " \x1b[30m ";
   console.log("\x1b[33m " + coinsHold + coin + " \x1b[34m " + coins + coin + " \x1b[30m " + (coins + coinsHold) + coin +
               " \x1b[33m $" + balanceHold + " \x1b[34m $" + balance + " \x1b[30m $" + (balanceHold + balance) + profitString);
 }
@@ -171,6 +183,9 @@ function checkPendingBuyOrders(callback){
 
 function handleCancelOrder(type, id){
   lock.acquire(ASYNC_LOCK, function(){
+    if(isProcessed(id)){
+      return;
+    }
     var order;
     if(type == "buy"){
       order = pendingBuys[id];
@@ -317,10 +332,6 @@ function getProducts(callback){
   publicClient.getProducts(callback);
 }
 
-function getAccounts(callback){
-  authClient.getAccounts(callback)
-}
-
 function getNextTick(callback) {
   publicClient.getProductTicker(function(err, resp, data){
     if(data && data.price){
@@ -333,7 +344,7 @@ function getNextTick(callback) {
 
 function sell(price, size, type){
   size = size ? size : coins;
-  let inc = 1/Math.pow(10,cryptoDecimal);
+  let inc = 1/Math.pow(10,tradeDecimal);
   if(size  < inc ){
     return;
   }
@@ -380,6 +391,9 @@ function sell(price, size, type){
         }
         return;
       }
+      if(data.status == "rejected"){
+        return;
+      }
 
       sellOrders[data.id] = data;
 
@@ -399,6 +413,10 @@ function sellLimit(price, size){
 
 function sellMarket(){
   sell(null, coins, "market");
+}
+
+function getCurrPrice(){
+  return currPrice;
 }
 
 function cancelOrder(orderId, callback){
@@ -563,17 +581,27 @@ function round(value, decimals) {
 function getOrder(id){
   authClient.getOrder(id, function(err, resp, data){
     console.log(err || data);
-  })
+  });
+}
+
+function getAccounts(callback){
+  authClient.getAccounts(function(err,resp,data){
+    callback(err,resp,data);
+  });
 }
 
 module.exports = {
   getProducts: getProducts,
-  getAccounts: getAccounts,
   getNextTick: getNextTick,
   sellLimit: sellLimit,
   sellMarket: sellMarket,
   cancelOrder: cancelOrder,
   cancelAllOrders: cancelAllOrders,
   buyIncrement: buyIncrement,
-  getOrder: getOrder
+  getOrder: getOrder,
+  getCurrPrice: getCurrPrice,
+  setInitialBalance: setInitialBalance,
+  getAccounts: getAccounts,
+  printDetails: printDetails,
+  init: init
 }

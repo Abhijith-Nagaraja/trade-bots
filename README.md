@@ -14,7 +14,7 @@ This project aims in writing bots for various financial markets and crypto marke
   * ETH-USD (Not Tested)
 
 ## Requirements
-* Node (Tested in version 6)
+* Node >= 7.6
 * npm
 
 ## Getting Started
@@ -27,6 +27,13 @@ cp config-sample.js config.js
 
 Make the necessary changes in the `config.js`
 
+To start you can use either one of these commands
+
 ```shell
 node index.js
+```
+OR
+
+```shell
+npm start
 ```
