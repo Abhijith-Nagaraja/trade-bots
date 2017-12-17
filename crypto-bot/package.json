@@ -4,7 +4,8 @@
   "description": "Crypto trading bot",
   "main": "index.js",
   "scripts": {
-    "start": "npm start"
+    "start": "node index.js",
+    "playground": "node playground.js"
   },
   "keywords": [
     "crypto",
@@ -13,9 +14,11 @@
   ],
   "dependencies": {
     "gdax": "0.4.2",
-    "express": "4.16.2",
-    "path": "0.12.7",
     "async-lock": "1.1.0"
+  },
+  "devDependencies": {
+    "express": "4.16.2",
+    "path": "0.12.7"
   },
   "author": "Abhijith Nagaraja",
   "license": "ISC"
