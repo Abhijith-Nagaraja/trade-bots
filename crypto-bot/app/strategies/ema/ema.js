@@ -26,6 +26,7 @@ class EMA{
     this.lowThreshold = lowThreshold ? lowThreshold : DEFAULT_LOW;
     this.highThreshold = highThreshold ? highThreshold : DEFAULT_HIGH;
     console.log("EMAs used: EMA" + this.lowThreshold + " & EMA" + this.highThreshold);
+    this.timePeriodCount = 1;
   }
 
   /**
@@ -46,6 +47,13 @@ class EMA{
     emaHighArr.unshift(value);
     emaHigh = this.calculateEma(emaHighArr, emaHigh);
     this.findTrend();
+    console.log();
+    console.log("Time Period " + this.timePeriodCount + " - " + new Date());
+    console.log("Value: " + value);
+    console.log("EMA" + this.lowThreshold + " = " + emaLow);
+    console.log("EMA" + this.highThreshold + " = " + emaHigh);
+    console.log();
+    this.timePeriodCount++;
   }
 
   // Calculate EMA

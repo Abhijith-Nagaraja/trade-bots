@@ -11,7 +11,6 @@ const CONFIG = require('../../config');
 const TRADING_PAIRS = require('./gdaxTradingPairs');
 const ASYNC_LOCK = "lock";
 const INC_BUY_PERCENT = CONFIG.TRADE.INC_BUY_PERCENT || 10;
-const buySize = parseInt(100/INC_BUY_PERCENT);
 const tradePair = CONFIG.TRADE_PAIR;
 const cryptoDecimal = TRADING_PAIRS.TRADE_ITEMS[tradePair].DECIMAL1;
 const tradeDecimal = TRADING_PAIRS.TRADE_ITEMS[tradePair].DECIMAL2;
@@ -73,7 +72,7 @@ function setInitialBalance(){
   * balanceHold(yellow) balance_available(blue) balance_coins(black)
   * profit/loss (green/red)
   */
-function printDetails(){
+function printDetails(msg){
   let coin = tradePair.split("-")[0];
   let accountBalance = balance + balanceHold + coins * currPrice + coinsHold * currPrice;
   let profit =  accountBalance - initialBalance;
@@ -82,6 +81,9 @@ function printDetails(){
                                   " \x1b[32m $" + accountBalance + " $" + profit + " " + profitPrecent + " \x1b[30m ";
   console.log("\x1b[33m " + coinsHold + coin + " \x1b[34m " + coins + coin + " \x1b[30m " + (coins + coinsHold) + coin +
               " \x1b[33m $" + balanceHold + " \x1b[34m $" + balance + " \x1b[30m $" + (balanceHold + balance) + profitString);
+  if(msg){
+    console.log("\x1b[36m" + msg+ " \x1b[30m ");
+  }
 }
 
 // Check pending sell orders to determine whether it is canceled/partillay filled or fully filled
@@ -198,7 +200,7 @@ function handleCancelOrder(type, id){
       let price = parseFloat(order.price);
       let deltaPrice = size*price;
 
-      buyPercent = buyPercent - INC_BUY_PERCENT;
+      buyPercent = buyPercent - order.percentBuy;
       balanceHold = balanceHold - deltaPrice;
       balance = balance + deltaPrice;
 
@@ -220,7 +222,7 @@ function handleCancelOrder(type, id){
     }
     fixDecimals();
     console.log(type + " order canceled :: " + buyPercent + "(Buy Percent)" + " :: Order Id: " + id);
-    printDetails();
+    printDetails("Current Price: " + getCurrPrice() + tradePair.split("-")[1]);
   });
 }
 
@@ -276,7 +278,7 @@ function handleFilledOrder(type, id, data){
     }
     fixDecimals();
     console.log(type + " order filled :: " + buyPercent + "(Buy Percent)" + " :: Order Id: " + id);
-    printDetails();
+    printDetails("Size: " + data.size + tradePair.split("-")[0] + " :: Price: " + data.size + tradePair.split("-")[1]);
   });
 }
 
@@ -286,6 +288,7 @@ function handlePartiallyFilledOrder(type, id, data){
       return;
     }
     if(type == "buy"){
+      let order = pendingBuys[id];
       delete pendingBuys[id];
 
       let size = parseFloat(data.size);
@@ -299,8 +302,8 @@ function handlePartiallyFilledOrder(type, id, data){
       balance = balance + (deltaHoldPrice - deltaBuyPrice);
       coins = coins + filledSize;
 
-      let filledPercent = (filledSize * INC_BUY_PERCENT) / size;
-      buyPercent = buyPercent - (INC_BUY_PERCENT - filledPercent);
+      let filledPercent = (filledSize * order.percentBuy) / size;
+      buyPercent = buyPercent - (order.percentBuy - filledPercent);
     }else if (type == "sell"){
       delete sellOrders[id];
 
@@ -324,7 +327,7 @@ function handlePartiallyFilledOrder(type, id, data){
     }
     fixDecimals();
     console.log(type + " order partially filled :: " + buyPercent + "(Buy Percent)" + " :: Order Id: " + id);
-    printDetails();
+    printDetails("Filled size: " + data.filled_size + tradePair.split("-")[0] + " :: Price: " + data.size + tradePair.split("-")[1]);
   });
 }
 
@@ -402,7 +405,7 @@ function sell(price, size, type){
 
       fixDecimals();
       console.log(type + " sell order placed :: " + buyPercent + "(Buy Percent)" + " :: Order Id: " + data.id);
-      printDetails();
+      printDetails("Size: " + size + tradePair.split("-")[0] + " :: Price: " + price + tradePair.split("-")[1]);
     });
   });
 }
@@ -477,27 +480,28 @@ function cancelAllOrders(callback){
 }
 
 function buyIncrement(price, callback){
-  if(balance > 0 && buyPercent <= (100 - INC_BUY_PERCENT)){
+  if(balance > 0 && buyPercent < 100){
     let remainingPercent = 100 - buyPercent;
-    let incrementBalance = parseFloat((INC_BUY_PERCENT * balance / remainingPercent).toFixed(tradeDecimal));
+    let percentBuy = remainingPercent < INC_BUY_PERCENT ? remainingPercent : INC_BUY_PERCENT;
+    let incrementBalance = parseFloat((percentBuy * balance / remainingPercent).toFixed(tradeDecimal));
     lock.acquire(ASYNC_LOCK, function(){
-      buyPercent = buyPercent + INC_BUY_PERCENT;
+      buyPercent = buyPercent + percentBuy;
       let dec = 1/Math.pow(10,cryptoDecimal);
       price = price - dec;
     }, function(err){
       if(!err){
-        buyLimit(price, (incrementBalance/price).toFixed(6), callback);
+        buyLimit(price, (incrementBalance/price).toFixed(6), percentBuy, callback);
       }
     });
   }
 }
 
-function buyLimit(price, size, callback){
+function buyLimit(price, size, percentBuy, callback){
   size = parseFloat(size);
   price = parseFloat(price);
   if(isNaN(size) || size < 1/Math.pow(10,cryptoDecimal)){
     lock.acquire(ASYNC_LOCK, function(){
-      buyPercent = buyPercent - INC_BUY_PERCENT;
+      buyPercent = buyPercent - percentBuy;
     });
     return;
   }
@@ -516,7 +520,7 @@ function buyLimit(price, size, callback){
       if(err){
         console.log("Error while placing buy order");
         console.log(err);
-        buyPercent = buyPercent - INC_BUY_PERCENT;
+        buyPercent = buyPercent - percentBuy;
         return;
       }
 
@@ -528,24 +532,25 @@ function buyLimit(price, size, callback){
         console.log("buy limit: " + data.message);
         console.log("Trying to buy " + size + tradePair.split("-")[0] + " @ $" + price);
         printDetails();
-        buyPercent = buyPercent - INC_BUY_PERCENT;
+        buyPercent = buyPercent - percentBuy;
         return;
       }
 
       if(data.status != "rejected"){
-        let remainingPercent = 100 - (buyPercent - INC_BUY_PERCENT);
-        let incrementBalance = parseFloat((INC_BUY_PERCENT * balance / remainingPercent).toFixed(tradeDecimal));
+        let remainingPercent = 100 - (buyPercent - percentBuy);
+        let incrementBalance = parseFloat((percentBuy * balance / remainingPercent).toFixed(tradeDecimal));
         balance = balance - incrementBalance;
         balanceHold = balanceHold + incrementBalance;
 
         let id = data.id;
         delete data["id"];
         pendingBuys[id] = data;
+        data["percentBuy"] = buyPercent;
 
         fixDecimals();
 
         console.log(data.side + "Order placed :: " + buyPercent + "(Buy Percent)" + " :: Order Id: " + id);
-        printDetails();
+        printDetails("Size: " + size + tradePair.split("-")[0] + " :: Price: " + price + tradePair.split("-")[1]);
 
         //Put a 15 second timer on the order
         setTimeout(function(){
@@ -558,7 +563,7 @@ function buyLimit(price, size, callback){
         return;
       }
 
-      buyPercent = buyPercent - INC_BUY_PERCENT;
+      buyPercent = buyPercent - percentBuy;
 
       if(callback){
         callback();

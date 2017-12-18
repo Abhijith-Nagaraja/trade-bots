@@ -27,6 +27,7 @@ class EmaStrategy{
     this.intervals = {};
     this.test1 = false;
     this.test2 = false;
+    this.sellOrderFlag = false;
   }
 
   setExchange(exchange){
@@ -129,15 +130,27 @@ class EmaStrategy{
   // Sell if Step 5 is satisfied
   sell(){
     let that = this;
-    this.exchange.cancelAllOrders(function(){
-        let price = that.exchange.getCurrPrice();
-        let emaHigh = that.ema.getEmaHigh();
-        if(price > emaHigh && price < that.ema.getEmaLow()){
-            that.exchange.sellLimit(price);
-        }else if(price <= emaHigh){
-            that.exchange.sellMarket();
-        }
-    });
+    if(!this.sellOrderFlag){
+      this.exchange.cancelAllOrders(function(){
+          let price = that.exchange.getCurrPrice();
+          let emaHigh = that.ema.getEmaHigh();
+          if(price > emaHigh && price < that.ema.getEmaLow()){
+              that.exchange.sellLimit(price);
+              that.sellOrderFlag = true;
+              that.resetSellOrderFlag();
+          }else if(price <= emaHigh){
+              that.exchange.sellMarket();
+          }
+      });
+    }
+  }
+
+  //Make sure sell orders are not cancelled within 5 seconds
+  resetSellOrderFlag(){
+    let that = this;
+    setTimeout(()=>{
+      that.sellOrderFlag = false;
+    }, 5000);
   }
 
   handleError(error,data){
