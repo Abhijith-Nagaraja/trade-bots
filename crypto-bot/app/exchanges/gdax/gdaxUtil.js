@@ -36,11 +36,11 @@ var orderTicker;
 // Should connect to sandbox?
 // TODO: Hardcoded to GDAX
 if(CONFIG.SANDBOX){
-  console.log("Connecting to " + CONFIG.SANDBOX_GDAX.URL);
-  authClient = new GDAX.AuthenticatedClient(CONFIG.SANDBOX_GDAX.API_KEY, CONFIG.SANDBOX_GDAX.SECRET, CONFIG.SANDBOX_GDAX.PASSPHRASE, CONFIG.SANDBOX_GDAX.URL)
+  console.log("Connecting to " + CONFIG.SANDBOXES.GDAX.URL);
+  authClient = new GDAX.AuthenticatedClient(CONFIG.SANDBOXES.GDAX.API_KEY, CONFIG.SANDBOXES.GDAX.SECRET, CONFIG.SANDBOXES.GDAX.PASSPHRASE, CONFIG.SANDBOXES.GDAX.URL)
 }else{
-  authClient = new GDAX.AuthenticatedClient(CONFIG.GDAX.API_KEY, CONFIG.GDAX.SECRET, CONFIG.GDAX.PASSPHRASE, CONFIG.GDAX.URL)
-  console.log("Connecting to " + CONFIG.GDAX.URL);
+  authClient = new GDAX.AuthenticatedClient(CONFIG.EXCHANGES.GDAX.API_KEY, CONFIG.EXCHANGES.GDAX.SECRET, CONFIG.EXCHANGES.GDAX.PASSPHRASE, CONFIG.EXCHANGES.GDAX.URL)
+  console.log("Connecting to " + CONFIG.EXCHANGES.GDAX.URL);
 }
 console.log("Connected to gdax");
 console.log("Trading Pair: " + tradePair);
@@ -278,7 +278,7 @@ function handleFilledOrder(type, id, data){
     }
     fixDecimals();
     console.log(type + " order filled :: " + buyPercent + "(Buy Percent)" + " :: Order Id: " + id);
-    printDetails("Size: " + data.size + tradePair.split("-")[0] + " :: Price: " + data.size + tradePair.split("-")[1]);
+    printDetails("Size: " + data.size + tradePair.split("-")[0] + " :: Price: " + data.price + tradePair.split("-")[1]);
   });
 }
 
@@ -327,7 +327,7 @@ function handlePartiallyFilledOrder(type, id, data){
     }
     fixDecimals();
     console.log(type + " order partially filled :: " + buyPercent + "(Buy Percent)" + " :: Order Id: " + id);
-    printDetails("Filled size: " + data.filled_size + tradePair.split("-")[0] + " :: Price: " + data.size + tradePair.split("-")[1]);
+    printDetails("Filled size: " + data.filled_size + tradePair.split("-")[0] + " :: Price: " + data.price + tradePair.split("-")[1]);
   });
 }
 
@@ -340,8 +340,9 @@ function getNextTick(callback) {
     if(data && data.price){
       currPrice = parseFloat(data.price);
     }
-
-    callback(err, resp, data);
+    if(callback){
+      callback(data.price);
+    }
   });
 }
 

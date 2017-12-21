@@ -22,7 +22,7 @@ class Strategy{
       */
     useStrategy(callback){
       let that = this;
-      (async () => {
+      (async() => {
         let exchangePromise = new Promise((resolve,reject) => {
           that.exchange = new EXCHANGE(function(){
             resolve();
@@ -34,6 +34,7 @@ class Strategy{
         that.exchange.init();
         that.strategy = that._getStrategy();
         that.strategy.setExchange(that.exchange);
+        that._setTradeTicker();
 
         if(callback){
           callback(that.strategy);
@@ -47,6 +48,16 @@ class Strategy{
       }
       return null;
     }
+
+    _setTradeTicker(){
+        let that = this;
+        this.tradeTicker = setInterval( function(){
+          that.exchange.getNextTick(function(price){
+            that.strategy.decide(parseFloat(price));
+          });
+        },CONFIG.TICKER_TIME_IN_MILLISECONDS);
+      }
+
 }
 
 module.exports = Strategy;

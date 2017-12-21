@@ -22,8 +22,8 @@ const EMA = require('./ema');
  */
 class EmaStrategy{
   constructor(){
-    this.ema = new EMA(CONFIG.EMA_LOW_THRESHOLD, CONFIG.EMA_HIGH_THRESHOLD);
-    console.log("EMA Time Period Used: " + CONFIG.EMA_TP + " seconds");
+    this.ema = new EMA(CONFIG.STRATEGIES.EMA.EMA_LOW_THRESHOLD, CONFIG.STRATEGIES.EMA.EMA_HIGH_THRESHOLD);
+    console.log("EMA Time Period Used: " + CONFIG.STRATEGIES.EMA.EMA_TP + " seconds");
     this.intervals = {};
     this.test1 = false;
     this.test2 = false;
@@ -52,7 +52,6 @@ class EmaStrategy{
   // Set all the counters
   setIntervals(){
     this.setQueueTicker();
-    this.setTradeTicker();
   }
 
   /**
@@ -61,30 +60,9 @@ class EmaStrategy{
     */
   setQueueTicker(){
     let that = this;
-    this.intervals["queueTicker"] = setInterval(function(){
-      that.exchange.getNextTick(function(error, response, data){
-          if (that.handleError(error,data)){
-            that.ema.push(parseFloat(data.price));
-          }
-      });
-    }, CONFIG.EMA_TP*1000);
-  }
-
-  /**
-    *   Create an interval to query the exchange at proper time period and
-    *   decide whether to buy or sell
-    *
-    *   TODO: Time Period need to come from config and it varies per exchange
-    */
-  setTradeTicker(){
-    let that = this;
-    this.intervals["tradeTicker"] = setInterval( function(){
-      that.exchange.getNextTick(function(error, response, data){
-        if (that.handleError(error,data)){
-          that.decide(parseFloat(data.price));
-        }
-      });
-    },334);
+    this.intervals["queueTicker"] = setInterval(
+                                        () => that.ema.push(parseFloat(that.exchange.getCurrPrice())),
+                                        CONFIG.STRATEGIES.EMA.EMA_TP*1000);
   }
 
   //Decide whether to buy or not (Step 2 & Step 3 in the steps described above)
